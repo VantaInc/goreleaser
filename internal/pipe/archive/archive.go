@@ -131,8 +131,9 @@ func create(ctx *context.Context, archive config.Archive, binaries []*artifact.A
 	var log = log.WithField("archive", archivePath)
 	log.Info("creating")
 
-	wrap, err := tmpl.New(ctx).
-		WithArtifact(binaries[0], archive.Replacements).
+	template := tmpl.New(ctx).
+		WithArtifact(binaries[0], archive.Replacements)
+	wrap, err := template.
 		Apply(wrapFolder(archive))
 	if err != nil {
 		return err
@@ -141,12 +142,12 @@ func create(ctx *context.Context, archive config.Archive, binaries []*artifact.A
 	var a = NewEnhancedArchive(archivelib.New(archiveFile), wrap)
 	defer a.Close() // nolint: errcheck
 
-	files, err := findFiles(archive)
+	files, err := findFiles(template, archive)
 	if err != nil {
 		return fmt.Errorf("failed to find files to archive: %s", err.Error())
 	}
 	for _, f := range files {
-		if err = a.Add(f, f); err != nil {
+		if err = a.Add(rewritePath(archive, f), f); err != nil {
 			return fmt.Errorf("failed to add %s to the archive: %s", f, err.Error())
 		}
 	}
@@ -183,6 +184,23 @@ func wrapFolder(a config.Archive) string {
 	}
 }
 
+func rewritePath(a config.Archive, oldpath string) string {
+	for _, rewrite := range a.RewritePaths {
+		relative, err := filepath.Rel(rewrite.Source, oldpath)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		if strings.Contains(relative, "../") {
+			continue
+		} else {
+			fmt.Println(rewrite.Dest, relative)
+			return filepath.Join(rewrite.Dest, relative)
+		}
+	}
+	return oldpath
+}
+
 func skip(ctx *context.Context, archive config.Archive, binaries []*artifact.Artifact) error {
 	for _, binary := range binaries {
 		log.WithField("binary", binary.Name).Info("skip archiving")
@@ -210,9 +228,13 @@ func skip(ctx *context.Context, archive config.Archive, binaries []*artifact.Art
 	return nil
 }
 
-func findFiles(archive config.Archive) (result []string, err error) {
+func findFiles(template *tmpl.Template, archive config.Archive) (result []string, err error) {
 	for _, glob := range archive.Files {
-		files, err := zglob.Glob(glob)
+		replaced, err := template.Apply(glob)
+		if err != nil {
+			return result, fmt.Errorf("Variable substitution failed for pattern %s: %s", glob, err.Error())
+		}
+		files, err := zglob.Glob(replaced)
 		if err != nil {
 			return result, fmt.Errorf("globbing failed for pattern %s: %s", glob, err.Error())
 		}
