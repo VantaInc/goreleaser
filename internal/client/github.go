@@ -109,10 +109,11 @@ func (c *githubClient) CreateRelease(ctx *context.Context, body string) (string,
 	if err != nil {
 		return "", err
 	}
+	tagName := ctx.Git.CurrentTag + "-" + ctx.Env["ENVIRONMENT"]
 
 	var data = &github.RepositoryRelease{
 		Name:       github.String(title),
-		TagName:    github.String(ctx.Git.CurrentTag),
+		TagName:    github.String(tagName),
 		Body:       github.String(body),
 		Draft:      github.Bool(ctx.Config.Release.Draft),
 		Prerelease: github.Bool(ctx.PreRelease),
