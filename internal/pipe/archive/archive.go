@@ -202,29 +202,31 @@ func rewritePath(a config.Archive, oldpath string) string {
 }
 
 func skip(ctx *context.Context, archive config.Archive, binaries []*artifact.Artifact) error {
-	for _, binary := range binaries {
-		log.WithField("binary", binary.Name).Info("skip archiving")
-		name, err := tmpl.New(ctx).
-			WithArtifact(binary, archive.Replacements).
-			Apply(archive.NameTemplate)
-		if err != nil {
-			return err
-		}
-		ctx.Artifacts.Add(&artifact.Artifact{
-			Type:   artifact.UploadableBinary,
-			Name:   name + binary.ExtraOr("Ext", "").(string),
-			Path:   binary.Path,
-			Goos:   binary.Goos,
-			Goarch: binary.Goarch,
-			Goarm:  binary.Goarm,
-			Gomips: binary.Gomips,
-			Extra: map[string]interface{}{
-				"Builds": []*artifact.Artifact{binary},
-				"ID":     archive.ID,
-				"Format": archive.Format,
-			},
-		})
-	}
+	// don't add binary archives
+	// for _, binary := range binaries {
+	// 	log.WithField("binary", binary.Name).Info("skip archiving")
+	// 	// don't add binary archives
+	// 	name, err := tmpl.New(ctx).
+	// 		WithArtifact(binary, archive.Replacements).
+	// 		Apply(archive.NameTemplate)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	ctx.Artifacts.Add(&artifact.Artifact{
+	// 		Type:   artifact.UploadableBinary,
+	// 		Name:   name + binary.ExtraOr("Ext", "").(string),
+	// 		Path:   binary.Path,
+	// 		Goos:   binary.Goos,
+	// 		Goarch: binary.Goarch,
+	// 		Goarm:  binary.Goarm,
+	// 		Gomips: binary.Gomips,
+	// 		Extra: map[string]interface{}{
+	// 			"Builds": []*artifact.Artifact{binary},
+	// 			"ID":     archive.ID,
+	// 			"Format": archive.Format,
+	// 		},
+	// 	})
+	// }
 	return nil
 }
 
